@@ -2,6 +2,7 @@
 
 import contextlib
 import errno
+import os
 import re
 import sys
 from argparse import ArgumentParser
@@ -21,6 +22,7 @@ CONDA_TYPE = "conda"
 VENV_TYPE = "venv"
 POETRY_TYPE = "poetry"
 LINKED_TYPE = "linked"
+NIX_TYPE = "nix"
 
 SUPPORTED_ENVIRONMENT_TYPES = [CONDA_TYPE, VENV_TYPE, POETRY_TYPE]
 
@@ -28,12 +30,14 @@ LINKED_ENV_FILES = [".linked_env"]
 POETRY_FILES = ["poetry.lock", "pyproject.toml"]
 VENV_FILES = ["venv", ".venv"]
 CONDA_FILES = ["environment.yaml", "environment.yml"]
+NIX_FILES = ["flake.nix"]
 
 TYPE_TO_FILES = {
     LINKED_TYPE: LINKED_ENV_FILES,
     POETRY_TYPE: POETRY_FILES,
     VENV_TYPE: VENV_FILES,
     CONDA_TYPE: CONDA_FILES,
+    NIX_TYPE: NIX_FILES,
 }
 
 FILE_TO_TYPE = {
@@ -58,6 +62,9 @@ IS_FIRST_MESSAGE = True
 
 
 def main():
+    if os.environ.get("DISABLE_ZSH_ACTIVATE_PY", None):
+        return
+
     # TODO(se-jaeger): add custom print usage function
     parser = ArgumentParser(
         description="Automagically detect and activate python environments (poetry, virtualenv, conda)",
@@ -177,7 +184,7 @@ def __find_nearest_environment_file(directory=None, priority=None):
         directory = getcwd()
 
     if priority is None:
-        priority = [CONDA_TYPE, LINKED_TYPE, POETRY_TYPE, VENV_TYPE]
+        priority = [NIX_TYPE, CONDA_TYPE, LINKED_TYPE, POETRY_TYPE, VENV_TYPE]
 
     if any(environment_type not in TYPE_TO_FILES for environment_type in priority) or any(
         not isinstance(environment_type, str) for environment_type in priority
@@ -303,6 +310,9 @@ def __handle_environment_file(type_, environment_path_file_or_name):
 
             __return_command(f"conda activate {environment_path_file_or_name}")
             __print_activation_message(TYPE_TO_FILES)
+
+    elif type_ == NIX_TYPE:
+        return  # Let the flake handle the python environment
 
     else:
         __print_error_and_fail(
