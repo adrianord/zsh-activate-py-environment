@@ -11,6 +11,7 @@ from os.path import abspath, isdir, isfile, join, split
 from shutil import which
 from subprocess import DEVNULL, CalledProcessError, check_call, run
 from sys import stderr
+from pathlib import Path
 
 with contextlib.suppress(ModuleNotFoundError):
     import yaml
@@ -23,14 +24,16 @@ VENV_TYPE = "venv"
 POETRY_TYPE = "poetry"
 LINKED_TYPE = "linked"
 NIX_TYPE = "nix"
+UV_TYPE = "uv"
 
 SUPPORTED_ENVIRONMENT_TYPES = [CONDA_TYPE, VENV_TYPE, POETRY_TYPE]
 
 LINKED_ENV_FILES = [".linked_env"]
-POETRY_FILES = ["poetry.lock", "pyproject.toml"]
+POETRY_FILES = ["poetry.lock"]
 VENV_FILES = ["venv", ".venv"]
 CONDA_FILES = ["environment.yaml", "environment.yml"]
 NIX_FILES = ["flake.nix"]
+UV_FILE = ["uv.lock"]
 
 TYPE_TO_FILES = {
     LINKED_TYPE: LINKED_ENV_FILES,
@@ -38,6 +41,7 @@ TYPE_TO_FILES = {
     VENV_TYPE: VENV_FILES,
     CONDA_TYPE: CONDA_FILES,
     NIX_TYPE: NIX_FILES,
+    UV_TYPE: UV_FILE,
 }
 
 FILE_TO_TYPE = {
@@ -184,7 +188,7 @@ def __find_nearest_environment_file(directory=None, priority=None):
         directory = getcwd()
 
     if priority is None:
-        priority = [NIX_TYPE, CONDA_TYPE, LINKED_TYPE, POETRY_TYPE, VENV_TYPE]
+        priority = [NIX_TYPE, UV_TYPE, CONDA_TYPE, LINKED_TYPE, POETRY_TYPE, VENV_TYPE]
 
     if any(environment_type not in TYPE_TO_FILES for environment_type in priority) or any(
         not isinstance(environment_type, str) for environment_type in priority
@@ -314,6 +318,12 @@ def __handle_environment_file(type_, environment_path_file_or_name):
     elif type_ == NIX_TYPE:
         return  # Let the flake handle the python environment
 
+    elif type_ == UV_TYPE:
+        if __check_dependencies(UV_TYPE):
+            venv = os.environ.get("UV_PROJECT_ENVIRONMENT", ".venv")
+            run(["uv", "sync"], stdout=sys.stderr, check=False)  # noqa: S603
+            __return_command(f"source {Path(environment_path_file_or_name).parent}/{venv}/bin/activate")
+            __print_activation_message(type_)
     else:
         __print_error_and_fail(
             f"Something went wrong! Do not know environment type '{type_}'. "
