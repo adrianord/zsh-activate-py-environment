@@ -297,7 +297,7 @@ def __handle_environment_file(type_, environment_path_file_or_name):
                 check_call(command.split(), stdout=DEVNULL)  # noqa: S603
 
             except CalledProcessError:
-                run(["poetry", "install"], stdout=DEVNULL, check=False)  # noqa: S603
+                run(["poetry", "install"], stdout=DEVNULL, check=False)  # noqa: S603, S607
 
             __return_command(f"source $({command})/bin/activate")
             __print_activation_message(type_)
@@ -321,7 +321,7 @@ def __handle_environment_file(type_, environment_path_file_or_name):
     elif type_ == UV_TYPE:
         if __check_dependencies(UV_TYPE):
             venv = os.environ.get("UV_PROJECT_ENVIRONMENT", ".venv")
-            run(["uv", "sync"], stdout=sys.stderr, check=False)  # noqa: S603
+            run(["uv", "sync", "--all-packages", "--all-extras", "--all-groups"], stdout=sys.stderr, check=False)  # noqa: S603, S607
             __return_command(f"source {Path(environment_path_file_or_name).parent}/{venv}/bin/activate")
             __print_activation_message(type_)
     else:
